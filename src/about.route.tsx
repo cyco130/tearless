@@ -2,7 +2,7 @@ import { defineRoute } from "./tearless";
 import { Nav } from "./Nav";
 
 export default defineRoute(
-	async function getData() {
+	async function get() {
 		return "about data";
 	},
 
