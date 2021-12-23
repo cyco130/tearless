@@ -25,7 +25,6 @@ export async function handleRequest(
 	}
 
 	const { methods, view: Page } = route;
-	debugger;
 
 	if (req.method === "GET" && Page) {
 		// Render component

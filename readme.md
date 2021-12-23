@@ -8,7 +8,7 @@ Define a route in `xxx.route.tsx` to map it to `/xxx` or `index.route.tsx` for `
 
 You can default export a React component, which will rendered on server-side and be served in an HTML file.
 
-Or you can `export default defineRoute(getOrMethods, component?, displayName?)`:
+Or you can `export default definePage(getOrMethods, component?, displayName?)`:
 
 `getOrMethods` is either a function or an object with methods in it. If it's a function, it will be interpreted as if it was an object with a `get` method.
 

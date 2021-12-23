@@ -1,11 +1,11 @@
 import { IncomingMessage } from "http";
 import { ComponentType } from "react";
 
-const routes = import.meta.glob("./**/*.route.tsx");
+const routes = import.meta.glob("./**/*.page.tsx");
 
 export async function findRoute(path: string): Promise<any> {
 	let routeImporter =
-		routes["." + path + ".route.tsx"] || routes["." + path + "index.route.tsx"];
+		routes["." + path + ".page.tsx"] || routes["." + path + "index.page.tsx"];
 
 	const route = routeImporter
 		? await routeImporter()
@@ -18,7 +18,7 @@ interface TearlessContext {
 	req: IncomingMessage;
 }
 
-export function defineRoute<D>(
+export function definePage<D>(
 	get: (this: TearlessContext) => D,
 	view?: ComponentType<{
 		data: Unpromisify<D>;
@@ -27,7 +27,7 @@ export function defineRoute<D>(
 	displayName?: string,
 ): any;
 
-export function defineRoute<
+export function definePage<
 	M extends Record<string, (this: TearlessContext, ...args: any) => any> & {
 		get?(this: TearlessContext): any;
 	},
@@ -40,15 +40,15 @@ export function defineRoute<
 	displayName?: string,
 ): any;
 
-export function defineRoute(
-	getOrmethods: any,
+export function definePage(
+	getOrMethods: any,
 	view?: ComponentType<any>,
 	displayName?: string,
 ): any {
 	if (view) view.displayName = displayName;
 
 	const methods =
-		typeof getOrmethods === "function" ? { get: getOrmethods } : getOrmethods;
+		typeof getOrMethods === "function" ? { get: getOrMethods } : getOrMethods;
 
 	return { methods, view };
 }

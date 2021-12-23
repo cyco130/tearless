@@ -1,6 +1,10 @@
 {
 	"name": "tearless",
-	"private": true,
+	"version": "0.0.0",
+	"files": [
+		"readme.md"
+	],
+	"license": "MIT",
 	"type": "module",
 	"scripts": {
 		"dev": "node src/index.js"

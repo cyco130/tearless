@@ -1,4 +1,4 @@
-import { defineRoute } from "./tearless";
+import { definePage } from "./tearless";
 import { Nav } from "./Nav";
 
 export default function NotFound() {

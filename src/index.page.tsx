@@ -1,9 +1,9 @@
-import { defineRoute } from "./tearless";
+import { definePage as definePage } from "./tearless";
 import { Nav } from "./Nav";
 import fs from "fs";
 import { useState } from "react";
 
-export default defineRoute(
+export default definePage(
 	{
 		// This is of course stupid, there are race conditions!
 

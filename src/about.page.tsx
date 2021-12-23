@@ -1,7 +1,7 @@
-import { defineRoute } from "./tearless";
+import { definePage } from "./tearless";
 import { Nav } from "./Nav";
 
-export default defineRoute(
+export default definePage(
 	async function get() {
 		return "about data";
 	},
