@@ -28,5 +28,8 @@ The plugin can't handle all cases yet. But it seems to be doable to make it work
 
 TODO:
 - Prod build (should work, I just didn't have the time).
-- A vite plugin so we can import other `.route.tsx` files and have access to their methods. Direct call on the server, RPC proxy on the client. Return type is easy to define, the proxy should also be fairly straightforward to implement.
-- Error handling, validation, etc.
+- ~~A vite plugin so we can import other `.route.tsx` files and have access to their methods. Direct call on the server, RPC proxy on the client. Return type is easy to define, the proxy should also be fairly straightforward to implement.~~
+
+	EDIT: This is not needed. Just use plain import and use them in your methods. Ideally, the methods object should be your only window to the server-side.
+
+- HTML escaping, error handling, validation, etc.
