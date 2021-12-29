@@ -1,0 +1,43 @@
+{
+	"name": "tearless",
+	"version": "0.0.1",
+	"type": "module",
+	"files": [
+		"*.d.ts",
+		"dist",
+		"src/raw"
+	],
+	"exports": {
+		".": "./src/raw/index.ts",
+		"./server": "./src/raw/server.ts",
+		"./client": "./src/raw/client.tsx",
+		"./plugin": {
+			"import": "./dist/plugin.js",
+			"require": "./dist/plugin.cjs"
+		}
+	},
+	"scripts": {
+		"build": "tsup --clean",
+		"dev": "tsup --watch",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"prepack": "pnpm build"
+	},
+	"peerDependencies": {
+		"vite": "^2.7.6"
+	},
+	"devDependencies": {
+		"@types/babel__core": "^7.1.17",
+		"@types/micromatch": "^4.0.2",
+		"@types/node": "^17.0.1",
+		"@types/prettier": "^2.4.2",
+		"tsup": "^5.11.6",
+		"typescript": "^4.5.4",
+		"vite": "^2.7.6"
+	},
+	"dependencies": {
+		"@babel/core": "^7.16.5",
+		"@babel/types": "^7.16.0",
+		"fast-glob": "^3.2.7",
+		"micromatch": "^4.0.4"
+	}
+}

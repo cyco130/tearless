@@ -1,25 +1,26 @@
-import { IncomingMessage } from "http";
 import { ComponentType } from "react";
 
-const routes = import.meta.glob("./**/*.page.tsx");
-
-export async function findRoute(path: string): Promise<any> {
-	let routeImporter =
-		routes["." + path + ".page.tsx"] || routes["." + path + "index.page.tsx"];
-
-	const route = routeImporter
-		? await routeImporter()
-		: await import("./NotFound");
-
-	return route.default;
+export interface TearlessContext<P = never> {
+	params: P;
 }
 
-interface TearlessContext {
-	req: IncomingMessage;
+export function withParams<P>(): <
+	M extends Record<string, (this: TearlessContext<P>, ...args: any) => any> & {
+		get?(this: TearlessContext<P>): any;
+	},
+>(
+	methods: M,
+	view?: ComponentType<{
+		data: Unpromisify<StrictReturnType<M["get"]>>;
+		methods: PromisifyMethods<M>;
+	}>,
+	displayName?: string,
+) => any {
+	return definePage;
 }
 
-export function definePage<D>(
-	get: (this: TearlessContext) => D,
+export function definePage<P, D>(
+	get: (this: TearlessContext<P>) => D,
 	view?: ComponentType<{
 		data: Unpromisify<D>;
 		methods: PromisifyMethods<{ get: typeof get }>;
@@ -28,8 +29,9 @@ export function definePage<D>(
 ): any;
 
 export function definePage<
-	M extends Record<string, (this: TearlessContext, ...args: any) => any> & {
-		get?(this: TearlessContext): any;
+	P,
+	M extends Record<string, (this: TearlessContext<P>, ...args: any) => any> & {
+		get?(this: TearlessContext<P>): any;
 	},
 >(
 	methods: M,

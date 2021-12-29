@@ -1,4 +1,8 @@
 node_modules
 dist
 *.log
-data.json
+*.local.*
+
+# netlify
+netlify
+.netlify

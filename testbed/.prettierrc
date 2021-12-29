@@ -1,5 +1,5 @@
 {
-	"quoteProps": "preserve",
+	"quoteProps": "consistent",
 	"trailingComma": "all",
 	"useTabs": true
 }
