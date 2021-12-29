@@ -18,9 +18,9 @@ export async function renderPage(
 
 	const { default: page } = module;
 
-	if (!page || typeof page !== "object") return null;
+	if (!page) return null;
 
-	const View = page.view;
+	const View = page.view || page;
 
 	return [
 		name,

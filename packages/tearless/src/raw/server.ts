@@ -35,7 +35,8 @@ export async function renderPage(
 	const module = await importer();
 	const { default: page } = module;
 
-	if (!page || typeof page !== "object") return;
+	if (!page) return;
+	if (!page.view) return { data: undefined, view: page, name };
 
 	const data = await page.methods.get?.bind({ ...context, params })();
 	const view = page.view;
