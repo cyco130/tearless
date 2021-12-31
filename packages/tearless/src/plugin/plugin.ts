@@ -1,86 +1,64 @@
 import { PluginOption } from "vite";
-import glob from "fast-glob";
-import micromatch from "micromatch";
 import path from "path";
+import { promises as fs } from "fs";
 import { transformAsync } from "@babel/core";
-import { babelStripServerSidePlugin } from "./strip-server-side-code";
+import { babelTransformServerSideHooks } from "./transform-server-side";
+import { babelTransformClientSideHooks } from "./transform-client-side";
 
-const { matcher } = micromatch;
-
-export interface TearlessOptions {
-	pages?: {
-		directory?: string;
-		extensions?: string[];
-	};
-}
-
-export default function tearlessPagesPlugin(
-	options: TearlessOptions = {},
-): PluginOption[] {
-	const { directory = ".", extensions = ["page.tsx"] } = options.pages || {};
-
-	let pagesDir: string;
-	let pattern: string;
-	let matcherFn: (path: string) => boolean;
+export default function tearlessPagesPlugin(): PluginOption[] {
+	let idCounter = 0;
+	let moduleIdMap: Record<string, string> = {};
+	let root: string;
+	let dev: boolean;
+	let ssrBuild: boolean;
+	let clientOutDir: string;
 
 	return [
 		{
-			name: "tearless:pages",
+			name: "tearless:manifest",
 
 			enforce: "pre",
 
-			configResolved(config) {
-				pagesDir = path.resolve(config.root, directory);
-				pattern = `**/*.(${extensions.join("|")})`;
-				matcherFn = matcher(path.resolve(pagesDir, pattern));
-			},
-
-			configureServer(server) {
-				server.watcher.on("all", (event, filePath) => {
-					if (event === "add" || (event === "unlink" && matcherFn(filePath))) {
-						const module = server.moduleGraph.getModuleById("tearless/pages");
-						if (module) {
-							server.moduleGraph.invalidateModule(module);
-						}
-					}
-				});
+			config() {
+				return {
+					ssr: {
+						noExternal: ["@tearless/manifest"],
+					},
+				} as any;
 			},
 
 			resolveId(id) {
-				if (id === "tearless/pages") {
+				if (id === "@tearless/manifest") {
 					return id;
-				}
-
-				if (["tearless", "tearless/server", "tearless/client"].includes(id)) {
-					const files = {
-						"tearless": "index.ts",
-						"tearless/client": "client.tsx",
-						"tearless/server": "server.ts",
-					};
-
-					const file = files[id as keyof typeof files];
-
-					return path.resolve(__dirname, "../src/raw", file);
 				}
 			},
 
 			async load(id) {
-				if (id === "tearless/pages") {
-					const files = await glob(path.join(pagesDir, pattern));
-					const paths = files.map(
-						(file) => "/" + path.relative(pagesDir, file),
-					);
-					const code = createRouteImporterModule(
-						paths,
-						extensions,
-						"/" + directory,
-					);
+				if (id === "@tearless/manifest") {
+					if (dev) {
+						return `export default new Proxy({}, { get: (_, name) => () => import("/" + name) });`;
+					} else {
+						const manifest = await fs.readFile(
+							path.resolve(root, clientOutDir, "tearless-manifest.json"),
+							"utf8",
+						);
 
-					return code;
+						let code = "export default {";
+
+						for (const [filePath, moduleId] of Object.entries(
+							JSON.parse(manifest),
+						)) {
+							code += `\n\t${JSON.stringify(
+								moduleId,
+							)}: () => import(${JSON.stringify("/" + filePath)}),`;
+						}
+
+						code += "\n};";
+						return code;
+					}
 				}
 			},
 		},
-
 		{
 			name: "tearless:transform",
 
@@ -88,32 +66,51 @@ export default function tearlessPagesPlugin(
 
 			config() {
 				return {
-					ssr: {
-						noExternal: ["tearless"],
+					resolve: {
+						dedupe: ["react-query"],
 					},
-				} as any;
+				};
 			},
 
-			async resolveId(id, importer, opt) {
-				const resolved = await this.resolve(id, importer, {
-					...opt,
-					skipSelf: true,
-				});
-
-				if (resolved && matcherFn(resolved.id)) {
-					return resolved;
-				}
+			configResolved(config) {
+				clientOutDir = (config as any).vavite.clientOutDir;
+				root = config.root;
+				dev = config.command === "serve";
+				ssrBuild = !dev && !!config.build.ssr;
 			},
 
 			async transform(code, id, options) {
-				if (options?.ssr || !matcherFn(id)) return;
+				if (
+					!id.startsWith(root) ||
+					(!code.includes(`"tearless"`) && !code.includes(`'tearless'`)) ||
+					(!code.includes("useServerSideData") && !code.includes("useSSD"))
+				) {
+					return;
+				}
+
+				let moduleId: string;
+				if (dev) {
+					moduleId = id.slice(root.length + 1);
+				} else {
+					moduleId = (idCounter++).toString(36);
+				}
+
+				const ref = { current: false };
 
 				// Parse with babel
 				const result = await transformAsync(code, {
 					filename: id,
 					code: true,
-					plugins: [babelStripServerSidePlugin],
+					plugins: [
+						options?.ssr
+							? babelTransformServerSideHooks()
+							: babelTransformClientSideHooks(moduleId, ref),
+					],
 				});
+
+				if (ref.current) {
+					moduleIdMap[id] = moduleId;
+				}
 
 				if (result) {
 					return result.code;
@@ -122,83 +119,15 @@ export default function tearlessPagesPlugin(
 					return code;
 				}
 			},
+
+			async closeBundle() {
+				if (!dev && !ssrBuild) {
+					fs.writeFile(
+						path.resolve(root, clientOutDir, "tearless-manifest.json"),
+						JSON.stringify(moduleIdMap),
+					);
+				}
+			},
 		},
 	];
-}
-
-export function createCommonPrefixTree<T>(
-	elements: [path: string, value: T][],
-) {
-	const tree: any = {};
-
-	for (const [path, value] of elements) {
-		let node = tree;
-		for (const part of path.split("/").filter(Boolean)) {
-			if (part.startsWith("[...") && part.endsWith("]")) {
-				const name = part.slice(4, -1);
-				node = node["**"] = node["**"] || { "..": name };
-			} else if (part.startsWith("[") && part.endsWith("]")) {
-				const name = part.slice(1, -1);
-				node = node["*"] = node["*"] || { "..": name };
-			} else {
-				if (!node[part]) {
-					node[part] = {};
-				}
-				node = node[part];
-			}
-		}
-
-		node["."] = value;
-	}
-
-	return tree;
-}
-
-export function createRouteImporterModule(
-	routes: string[],
-	extensions: string[],
-	prefix: string = "",
-) {
-	const exts = extensions
-		.map((ext) => "." + ext)
-		.sort((a, b) => b.length - a.length);
-
-	const paths = routes.map((route) => {
-		const ext = exts.find((ext) => route.endsWith(ext))!;
-		let path = route.slice(0, -ext.length);
-		if (path.endsWith("/index")) {
-			path = path.slice(0, -6);
-		}
-
-		return [path, prefix + route] as [string, string];
-	});
-
-	const tree = createCommonPrefixTree(paths);
-
-	let code = `const tree = {\n`;
-
-	function visit(node: any, depth = 1) {
-		for (const key of Object.keys(node).sort()) {
-			if (key === ".") {
-				const name = JSON.stringify(node["."]);
-				code +=
-					Array(depth + 1).join("  ") +
-					`".": [${name}, () => import(${name})],\n`;
-			} else if (key === "..") {
-				code +=
-					Array(depth + 1).join("  ") +
-					`"..": ${JSON.stringify(node[".."])},\n`;
-			} else {
-				code += Array(depth + 1).join("  ") + `"${key}": {\n`;
-				visit(node[key], depth + 1);
-				code += Array(depth + 1).join("  ") + "},\n";
-			}
-		}
-	}
-
-	visit(tree);
-
-	code += "};\nexport default tree;\n";
-
-	return code;
 }

@@ -5,11 +5,10 @@ import tearless from "tearless/plugin";
 
 export default defineConfig({
 	root: "src",
-	plugins: [vavite(), react(), tearless({ pages: { directory: "pages" } })],
+	plugins: [vavite(), react(), tearless()],
 	build: {
 		outDir: "../dist",
-		rollupOptions: {
-			input: "client.tsx",
-		},
+		rollupOptions: { input: "client.tsx" },
+		emptyOutDir: true,
 	},
 });
